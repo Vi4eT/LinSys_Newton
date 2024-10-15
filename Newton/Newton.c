@@ -5,10 +5,10 @@
 
 FILE* out;
 
-static void put(const char* format)
+static void put(const char* buffer)
 {
-	fputs(format, stdout);
-	fputs(format, out);
+	fputs(buffer, stdout);
+	fputs(buffer, out);
 }
 
 static void print(char* format, ...)
@@ -51,6 +51,37 @@ static void print(char* format, ...)
 		}
 	}
 	va_end(args);
+}
+
+static int getarr(FILE* in, double* arr, int n)
+{
+	for (int i = 0; i < n; i++)
+		switch (fscanf_s(in, "%lg", &arr[i]))
+		{
+			case 0:
+				fgetc(in);
+				i--;
+				break;
+			case EOF:
+				put("\nNot enough values.\n");
+				return 0;
+			default:
+				print("%lg ", arr[i]);
+		}
+	return 1;
+}
+
+static int stdexit(const char* buffer, double* x, double* y, double* c, FILE* in)
+{
+	put(buffer);
+	free(x);
+	free(y);
+	free(c);
+	fclose(in);
+	fclose(out);
+	if (!*buffer)
+		return 0;
+	return 1;
 }
 
 static double sub(double q, int n)	//substitute q(q-1)...(q-n+1)
@@ -103,9 +134,9 @@ static int newton(int n, double* x, double* y, double* c)
 
 static double interpolate(int n, double* x, double* c, double xi)
 {
-	double res = c[0];
+	double res = c[0], q = (xi - x[0]) / (x[1] - x[0]);
 	for (int i = 1; i < n; i++)
-		res += sub((xi - x[0]) / (x[1] - x[0]), i) * c[i];
+		res += sub(q, i) * c[i];
 	if (fabs(res) < 1e-13)	//avoids machine epsilon
 		res = 0;
 	return res;
@@ -117,12 +148,12 @@ int main(int argc, char const* argv[])
 	int n = 0;
 	if (argc > 1 && fopen_s(&in, argv[1], "r"))
 	{
-		printf("Cannot open file.\n");
+		printf("Cannot open input file.\n");
 		return 1;
 	}
 	if (fopen_s(&out, "output.txt", "w"))
 	{
-		printf("Cannot open file.\n");
+		printf("Cannot open output file.\n");
 		fclose(in);
 		return 1;
 	}
@@ -149,67 +180,25 @@ int main(int argc, char const* argv[])
 	double* y = (double*)malloc(n * sizeof(double));
 	double* c = (double*)malloc(n * sizeof(double));
 	if (!x || !y || !c)
-	{
-		put("Memory allocation error.\n");
-		free(x);
-		free(y);
-		free(c);
-		fclose(in);
-		fclose(out);
-		return 1;
-	}
+		return stdexit("Memory allocation error.\n", x, y, c, in);
 	system("cls");
 	put("Input X values:\n");
-	for (int i = 0; i < n; i++)
-		switch (fscanf_s(in, "%lg", &x[i]))
-		{
-			case 0:
-				fgetc(in);
-				i--;
-				break;
-			case EOF:
-				put("Not enough values.\n");
-				goto end;
-			default:
-				print("%lg ", x[i]);
-		}
+	if (!getarr(in, x, n))
+		return stdexit("", x, y, c, in);
 	put("\nInput Y values:\n");
-	for (int i = 0; i < n; i++)
-		switch (fscanf_s(in, "%lg", &y[i]))
-		{
-			case 0:
-				fgetc(in);
-				i--;
-				break;
-			case EOF:
-				put("Not enough values.\n");
-				goto end;
-			default:
-				print("%lg ", y[i]);
-		}
+	if (!getarr(in, y, n))
+		return stdexit("", x, y, c, in);
+
 	print("\n\nNumber of data points = %d\n\nNewton polynomial coefficients:\n", n);
 	if (newton(n, x, y, c))
 		for (int i = 0; i < n; i++)
 			print("c[%d] = %lg\n", i, c[i]);
 	else
-	{
-		put("Newton function error.\n");
-		free(x);
-		free(y);
-		free(c);
-		fclose(in);
-		fclose(out);
-		return 1;
-	}
+		return stdexit("Newton function error.\n", x, y, c, in);
+
 	put("\nInterpolation:\nX               Y\n");
 	for (double xi = x[0], dx = 0.1; xi <= x[n - 1] + dx / 10.0; xi += dx) //dx/10.0 avoids machine epsilon
 		print("%wg %wg\n", xi, interpolate(n, x, c, xi));
-end:
 	printf("\nLog saved in \"output.txt\".\n");
-	free(x);
-	free(y);
-	free(c);
-	fclose(in);
-	fclose(out);
-	return 0;
+	return stdexit("", x, y, c, in);
 }
