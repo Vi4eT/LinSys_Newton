@@ -5,6 +5,7 @@
 
 *.txt
 *.jpg
+DiagDominance.c
 
 # User-specific files
 *.rsuser
