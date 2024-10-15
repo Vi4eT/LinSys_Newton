@@ -78,7 +78,7 @@ static int newton(int n, double* x, double* y, double* c)
 		return 0;
 	for (int i = 0; i < n; i++)
 	{
-		dif[i] = (double*)malloc((n - i) * sizeof(double));
+		dif[i] = (double*)malloc(n * sizeof(double));			//C6385 if n - i
 		if (!dif[i])
 		{
 			for (int j = 0; j < i; j++)
@@ -91,7 +91,7 @@ static int newton(int n, double* x, double* y, double* c)
 		dif[i][0] = y[i];
 	for (int i = 1; i < n; i++)
 		for (int j = 0; j < n - i; j++)
-			if (j + 1 < n)
+			if (j + 1 < n)										//C6385 if absent
 				dif[j][i] = dif[j + 1][i - 1] - dif[j][i - 1];	//forward finite differences table
 	for (int i = 0; i < n; i++)
 		c[i] = dif[0][i] / (fact(i) * pow(x[1] - x[0], i));
